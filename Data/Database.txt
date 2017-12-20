@@ -1,0 +1,7 @@
+2
+4x6.jpg
+This picture is 4 inches by 6 inches! portraite.
+fakedate
+6x4.jpg
+This picture is 6 inches by 4 inches! landscape. 
+fakedate

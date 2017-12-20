@@ -1,0 +1,12 @@
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\bin\Debug\ThumbAlbum.exe.config
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\bin\Debug\ThumbAlbum.exe
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\bin\Debug\ThumbAlbum.pdb
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.csprojResolveAssemblyReference.cache
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.Properties.Resources.resources
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.SearchGridView.resources
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.csproj.GenerateResource.Cache
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.csproj.CoreCompileInputs.cache
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.exe
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.pdb
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.SingleView.resources
+C:\Users\User\Documents\Thumb-Album\Thumb-Album\ThumbAlbum\obj\Debug\ThumbAlbum.SystemBase.resources
