@@ -21,7 +21,7 @@ namespace ThumbAlbum
         DateTime taken;
 
         //is tag a class or just a string?
-        String[] tags;// = new String[];
+        public List<ImageTag> imgTags = new List<ImageTag>();
 
         Image image;//may not even use this
 
@@ -45,17 +45,46 @@ namespace ThumbAlbum
             return ResizeImage(GetImage(), maxWidth, maxHeight);
         }
 
+        public void AddToDatabase(String _filePath)//make this sorted by date taken? that would be good. LATER
+        {
+            StreamWriter sw = new StreamWriter(dbFile, true);
+            sw.WriteLine(imageName);
+            sw.WriteLine(description);
+            sw.WriteLine(taken);
+
+            String comma = "";
+            foreach(ImageTag tag in imgTags)
+            {
+
+                sw.Write(comma + tag.tag);
+                comma = ",";
+            }
+            sw.Close();
+            File.Copy(_filePath, filePath + imageName);//source, destinatoin 
+        }
+
+        public void RemoveFromDatabase()
+        {
+
+        }
+
         public static ImageRecord[] LoadDatabase()
         {
+            ImageRecord[] list = null;
             StreamReader sr = new StreamReader(dbFile);
-            int images = int.Parse(sr.ReadLine());
-            Console.WriteLine("number of images is: "+ images);
-            ImageRecord[] list = new ImageRecord[images];
+            //if (sr.ReadToEnd() != "")//if the database is not empty
+            //{
+                
+                int images = int.Parse(sr.ReadLine());
+                Console.WriteLine("number of images is: " + images);
+                list = new ImageRecord[images];
 
-            for (int i = 0; i < images; i++)
-            {
-                list[i] = ReadRecord(sr);
-            }
+                for (int i = 0; i < images; i++)
+                {
+                    list[i] = ReadRecord(sr);
+                }
+           // }
+            sr.Close();
             return list;
         }
 
@@ -70,7 +99,15 @@ namespace ThumbAlbum
             desc = sr.ReadLine();
             date = sr.ReadLine();
 
-            return new ImageRecord(name, desc, DateTime.Now);//date time is a dummy value because I don't know how I want to handel it yet.
+            ImageRecord record = new ImageRecord(name, desc, DateTime.Now);//date time is a dummy value because I don't know how I want to handel it yet.
+
+            String[] tags = sr.ReadLine().Split(',');//spit at ','
+            foreach(String tag in tags)
+            {
+                ImageTag.attachTag(record, tag);
+            }
+
+            return record;
         }
 
         public static Image ResizeImage(Image image, int maxWidth, int maxHeight)
@@ -115,6 +152,11 @@ namespace ThumbAlbum
             }
 
             return (Image)destImage;
+        }
+
+        public void ImportImage(String filePath)
+        {
+            
         }
     }
 }

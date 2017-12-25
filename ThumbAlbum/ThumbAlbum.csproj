@@ -45,7 +45,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddImage.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="AddImage.Designer.cs">
+      <DependentUpon>AddImage.cs</DependentUpon>
+    </Compile>
     <Compile Include="ImageRecord.cs" />
+    <Compile Include="ImageTag.cs" />
     <Compile Include="SingleView.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -66,6 +73,9 @@
     <Compile Include="SearchGridView.Designer.cs">
       <DependentUpon>SearchGridView.cs</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="AddImage.resx">
+      <DependentUpon>AddImage.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="SingleView.resx">
       <DependentUpon>SingleView.cs</DependentUpon>
     </EmbeddedResource>

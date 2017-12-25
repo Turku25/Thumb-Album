@@ -14,6 +14,7 @@ namespace ThumbAlbum
     {
         SystemBase parent;
         int imageIndex = 0;
+        ImageRecord image;
         public SingleView(SystemBase _parent)
         {
             parent = _parent;
@@ -25,15 +26,21 @@ namespace ThumbAlbum
             parent.EnterGridView();
         }
 
-        public void EnterImage(int startImage)
+        public void EnterImage(ImageRecord i)//int startImage)
         {
-            imageIndex = startImage;
-            UpdateImage();
+            //imageIndex = startImage;
+            UpdateImage(i);
         }
 
-        private void UpdateImage()
+        private void UpdateImage(ImageRecord image)
         {
-            BigImage.Image = (parent.GetRecord(imageIndex)).GetImageFit(BigImage.Width, BigImage.Height);
+            //image = parent.GetRecord(imageIndex);
+            BigImage.Image = image.GetImageFit(BigImage.Width, BigImage.Height);
+            ListTags.Items.Clear();
+            foreach (ImageTag t in image.imgTags)
+            {
+                ListTags.Items.Add(t.tag);
+            }
         }
     }
 }

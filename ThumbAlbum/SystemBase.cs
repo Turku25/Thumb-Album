@@ -14,8 +14,10 @@ namespace ThumbAlbum
     {
         SearchGridView sgv;
         SingleView singleView;
+        AddImage addImage;
 
         ImageRecord[] imageList;
+        List<ImageRecord> filteredList = new List<ImageRecord>();
         public int selectionStart = 0;
         public int selectionEnd = 3;
         
@@ -38,14 +40,18 @@ namespace ThumbAlbum
 
         public ImageRecord[] GetImageSelection()
         {
-            int size = selectionEnd - selectionStart + 1;
-            size = Math.Min(size, imageList.Length);//make sure you dont go out of bounds!
-            ImageRecord[] selection = new ImageRecord[size];
-            for(int i = 0; i < size; i++)
+            if (imageList != null)
             {
-                selection[i] = imageList[selectionStart + i];
+                int size = selectionEnd - selectionStart + 1;
+                size = Math.Min(size, imageList.Length);//make sure you dont go out of bounds!
+                ImageRecord[] selection = new ImageRecord[size];
+                for (int i = 0; i < size; i++)
+                {
+                    selection[i] = imageList[selectionStart + i];
+                }
+                return selection;
             }
-            return selection;
+            return null;
         }
 
         public ImageRecord GetRecord(int index)
@@ -54,18 +60,29 @@ namespace ThumbAlbum
             return imageList[index];
         }
 
-        public void EnterSingleView(int index)//index of the image within current selection
+        public void EnterSingleView(ImageRecord i)//int index)//index of the image within current selection
         {
             this.Controls.Remove(sgv);
-            singleView.EnterImage(index);
+            singleView.EnterImage(i);// index);
             this.Controls.Add(singleView);
+            
         }
 
         public void EnterGridView()
         {
             this.Controls.RemoveAt(0);
-            //singleView.setup();//image, index other info
             this.Controls.Add(sgv);
+        }
+
+        public void EnterAddImage(ImageRecord edit)
+        {
+            this.Controls.RemoveAt(0);
+            this.Controls.Add(addImage = new AddImage(this, edit));
+        }
+
+        public ImageRecord[] QuereyWithTag(ImageTag t)//this is awful programming
+        {
+            return t.taggedImages.ToArray();
         }
     }
 }
