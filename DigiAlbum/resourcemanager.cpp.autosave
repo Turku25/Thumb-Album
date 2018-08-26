@@ -1,0 +1,338 @@
+#include "resourcemanager.h"
+#include <QtCore>
+#include <QDebug>
+#include <QSqlError>
+
+//##### PUBLIC ######################################################################
+
+ResourceManager::ResourceManager(AlbumViewer* viewer, QWidget* rootParent)
+{
+    albumViewer = viewer;
+    parent = rootParent;
+    connectToDatabase();//self explanitory
+    loadDatabase();//load tags
+
+}
+
+void ResourceManager::loadView()
+{  
+    int end = viewMode;
+    if(viewIndex + end > currentQuery.size())// dont go past the last picture
+        end = currentQuery.size() - viewIndex;
+    QImageReader* reader = new QImageReader();
+    albumViewer->prepareView(end);
+
+    int quality = 0;
+    if(viewMode > 2)
+        quality = MINI_QUALITY;
+    else
+        quality = FULL_QUALITY;
+
+
+    int i = 0;
+    for(; i < end; i++)
+    {
+        albumViewer->setEntry(loadEntryData(i + viewIndex, quality, reader), i);
+    }
+    delete reader;
+}
+
+void ResourceManager::focusView(int realitiveIndex)
+{
+    if(viewMode == 1 && unfocusX * unfocusY == 1)
+        return;
+    if(viewMode == 1) //unfocus
+    {
+        viewIndex -= viewIndex % (unfocusX * unfocusY);//view index is first of current page
+        setShownGrid(unfocusX, unfocusY);
+    }
+    else                        // focus
+    {
+        setShownGrid(1,1);
+        viewIndex += realitiveIndex;
+    }
+}
+
+void ResourceManager::setShownGrid(int x, int y)//maximum of 5x5 maybe?
+{
+    viewMode = x * y;
+    albumViewer->setGrid(x, y);
+}
+
+void ResourceManager::setGrid(int x, int y)//maximum of 5x5 maybe?
+{
+    unfocusX = x;
+    unfocusY = y;
+    viewIndex -= viewIndex % (unfocusX * unfocusY);
+    setShownGrid(x, y);
+}
+
+bool ResourceManager::setIndex(int index)
+{
+    if( index > 0 && (index - 1) * viewMode < currentQuery.size())
+    {
+        viewIndex = (index - 1) * viewMode;
+        return true;
+    }
+    return false;
+}
+
+bool ResourceManager::forwards()
+{
+    if(viewIndex + viewMode < currentQuery.size())
+    {
+        viewIndex += viewMode;
+        return true;
+    }
+    return false;
+}
+
+bool ResourceManager::backwards()
+{
+    if(viewIndex - viewMode >= 0)
+    {
+        viewIndex -= viewMode;
+        return true;
+    }
+    return false;
+}
+
+std::tuple<int, int> ResourceManager::getIndexStat()
+{
+    std::tuple<int, int> stat;
+    std::get<0>(stat) = viewIndex / viewMode + 1;// +1 for 0-indexing
+    std::get<1>(stat) = currentQuery.size() / viewMode + ((currentQuery.size() % viewMode == 0)?0:1);
+    return stat;
+}
+
+
+
+void ResourceManager::importImages(QStringList files)
+{
+    importCanceled = false;
+    ImportProgress* importDiolog= new ImportProgress(files.size(), parent);
+    importDiolog->show();
+    //importDiolog->
+
+    QSqlQuery qry;
+    if(!qry.exec("SELECT ImportID FROM Imports ORDER BY ImportID DESC LIMIT 1;"))
+        qDebug() << "query Failed. get importID";
+    int importID = (qry.next())?qry.value(0).toInt():0;
+    importID++;                                                         //AT LEAST ONE MUST ME ADDED FOR IMPORTID TO WORK!
+    qry.clear();
+
+    for(QString path: files)
+    {
+
+        QString filenameUnique = getUniqueFilename(path);
+        importDiolog->currentTask(filenameUnique);
+        if(filenameUnique != "")
+        {
+            QFile::copy(path, "debug/res/imgs/original/" + filenameUnique);
+
+            createScaledVersions(filenameUnique);
+
+            if(!qry.exec("INSERT INTO Imports (Filename, ImportID) "
+                         "VALUES ('" + filenameUnique + "', "+ QString::number(importID) + ")"))
+                qDebug() << "query Failed. Imports insert.";
+        }
+
+        importDiolog->updateProgress();
+        if(importCanceled)
+        {
+            // THIS HAS NOT BEEN DONE YET AND COULD CAUSE CATESTROPIC FAILURE
+            //undo import with currrentID
+            break;
+        }
+    }
+    delete importDiolog;
+    //RELOAD TAGGING QUEUE
+}
+
+
+//##### PRIVATE ######################################################################
+
+
+//############### FILE READING #######################################################
+AlbumEntry* ResourceManager::loadEntryData(int index, int quality, QImageReader* reader = new QImageReader())
+{
+    AlbumEntry* entry = currentQuery.at(index);
+    if(entry->img == nullptr || entry->quality < quality)
+    {
+        QString qualityPath;
+        if(quality == FULL_QUALITY)
+            qualityPath = "full/";
+        if(quality == MINI_QUALITY)
+            qualityPath = "mini/";
+
+        reader->setFileName("debug/res/imgs/" + qualityPath + entry->filename);//check the proper folder for quality
+        QPixmap* image = new QPixmap();
+        *image = QPixmap::fromImageReader(reader);
+        entry->img = image;
+        entry->quality = quality;
+
+        //cache stuff
+        if(cache.size() > cacheSize)
+            delete cache.dequeue();
+        cache.enqueue(image);
+    }
+    return entry;
+}
+
+void ResourceManager::createScaledVersions(QString filename)
+{
+    QImageReader* reader = new QImageReader();
+
+    reader->setFileName("debug/res/imgs/original/" +  filename);
+    QImage full = reader->read();
+    QImage mini = full.copy();
+
+    if(full.width() > 1620 || full.height() > 1080)
+        full = full.scaled(1620, 1080,Qt::AspectRatioMode::KeepAspectRatio, Qt::TransformationMode::SmoothTransformation);
+    if(mini.width() > 810 || mini.height() > 540)
+        mini = mini.scaled(810, 540,Qt::AspectRatioMode::KeepAspectRatio, Qt::TransformationMode::SmoothTransformation);
+
+    full.save("debug/res/imgs/full/" +  filename);
+    mini.save("debug/res/imgs/mini/" +  filename);
+
+    delete reader;
+}
+
+//############### DATABASE ###########################################################
+void ResourceManager::loadDatabase() // USE THIS FOR READING IN TAGS
+{
+    QSqlQuery qry;
+    qry.prepare("SELECT Tag, * FROM TagList");
+    if(!qry.exec())
+        qDebug() << "query Failed";
+
+    while(qry.next())
+        tags.append(qry.value(0).toString());
+}
+
+void ResourceManager::connectToDatabase()
+{
+    database = QSqlDatabase::addDatabase("QSQLITE");
+    database.setDatabaseName(resPath+"DigiAlbum.db");
+    if(!database.open())
+    {
+        qDebug() << "failed to open";
+        //return false;
+    } else {
+        qDebug() << "oppened!";
+        //return true;
+    }
+}
+
+void ResourceManager::disconnectFromDatabase()
+{
+    database.close();
+    database.removeDatabase(QSqlDatabase::defaultConnection);
+}
+
+void ResourceManager::runImageQuery(QStringList* tags, QDate* start, QDate* end)//take in perameters of tags and date
+{
+    for(int i = currentQuery.size(); i > 0; i--)
+        delete currentQuery.takeFirst();
+    //CLEAR THE CACHE QUEUE
+    for(int i = cache.size(); i > 0; i--)
+        delete cache.dequeue();
+
+    QSqlQuery qry;
+    QString qryString = "SELECT * "
+                        "FROM Images as img ";
+    qryString += tagQuerey(tags, start, end);
+    //date studd here?
+    qryString += ";";
+    qDebug() << qryString;
+    //qry.prepare(qryString);
+
+    if(!qry.exec(qryString))
+        qDebug() << "query Failed";
+    qDebug() << qry.lastError();
+    while(qry.next())
+    {
+        qDebug() << qry.value(0);
+        currentQuery.append(new AlbumEntry(qry.value(0).toString(),
+                                           qry.value(1).toString(),
+                                           qry.value(2).toString()));//,
+                                           //qry.value(3).toInt())); for data types
+    }
+    delete tags;
+    delete start;
+    delete end;
+}
+
+//Assembles an AND search of active tags
+QString ResourceManager::tagQuerey(QStringList* tags, QDate* start, QDate* end)
+{
+    QString tagSearch = "";
+    if(tags->size() != 0)
+    {
+        tagSearch = "JOIN TagPairs as tags ON img.filename = tags.filename "
+                            "WHERE tags.tag IN (";
+        for(int i = 0; i < tags->size(); i++)
+        {
+            tagSearch += "'" + tags->at(i) + "'";
+            if(i != tags->size() - 1)
+                tagSearch += ", ";
+        }
+        tagSearch += ") "
+                       "GROUP BY img.filename "
+                        " HAVING COUNT(img.filename) = " + QString::number(tags->size()) + " ";
+    }
+
+    if(start->year() != 0 || end->year() != 0)
+    {
+        if(tags->size() != 0)
+            tagSearch += "AND ";
+        else
+            tagSearch += "WHERE ";
+    }
+
+    //DATE
+    if(start->year() != 0 && end->year() != 0)
+        tagSearch += "img.Time BETWEEN '" + start->toString(Qt::DateFormat::ISODate) +"' AND '" + end->toString(Qt::DateFormat::ISODate) +"' ";
+    if(start->year() != 0 && end->year() == 0)
+        tagSearch += "img.Time > '" + start->toString(Qt::DateFormat::ISODate) + "' ";
+    if(start->year() == 0 && end->year() != 0)
+        tagSearch += "img.Time < '" + end->toString(Qt::DateFormat::ISODate) + "' ";
+
+    return tagSearch;
+}
+
+QString ResourceManager::getUniqueFilename(QString filepath) // try returning a string list. 1 if no collision, (new, collidePath) if collide
+{
+    QString filename = filepath.split("/").last();
+    QSqlQuery qry;
+    bool unique = false;
+
+    while(!unique)
+    {
+        unique = true;
+
+        if(!qry.exec("SELECT * FROM Images WHERE Filename = '" + filename +"';"))
+            qDebug() << "query Failed. Images search.";
+        unique &= !qry.next();
+
+        qry.clear();
+        if(!qry.exec("SELECT * FROM Imports WHERE Filename = '" + filename +"';"))
+            qDebug() << "query Failed. Imports search.";
+        unique &= !qry.next();
+
+        if(!unique)
+        {
+            //check if copy
+            CollisionDialog collision("debug/res/imgs/original/" + filename, filepath, parent);//need images or at least file paths
+            collision.setModal(true);
+            if(collision.exec() == 1) // 1 IS copy, 0 is NOT copy
+            {
+                return "";
+            }
+            //if not copy
+            QStringList halfs = filename.split(".");
+            filename = halfs[0] + "D." + halfs[1]; // D for duplicate I guess?? Just appending more Ds might not be the best idea.
+        }
+    }
+    return filename;
+}
