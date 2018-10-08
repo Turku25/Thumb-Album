@@ -28,11 +28,7 @@ SOURCES += \
         mainwindow.cpp \
     exif.cpp \
     albumview.cpp \
-    databasemanager.cpp \
     resourcemanager.cpp \
-    enteryqueue.cpp \
-    filereaderthread.cpp \
-    albumentry.cpp \
     albumviewer.cpp \
     importprogress.cpp \
     collisiondialog.cpp
@@ -41,11 +37,8 @@ HEADERS += \
         mainwindow.h \
     exif.h \
     albumview.h \
-    databasemanager.h \
     resourcemanager.h \
-    enteryqueue.h \
     albumentry.h \
-    filereaderthread.h \
     definitions.h \
     albumviewer.h \
     importprogress.h \

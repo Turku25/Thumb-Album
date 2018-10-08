@@ -26,3 +26,8 @@ void ImportProgress::currentTask(QString task)
     ui->label->setText(task);
     qApp->processEvents();// display progress bar to screen
 }
+
+void ImportProgress::on_ImportProgress_finished(int result)
+{
+    canceled = true;
+}

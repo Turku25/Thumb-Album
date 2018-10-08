@@ -1,6 +1,6 @@
 #include "resourcemanager.h"
 #include <QtCore>
-#include <QDebug>
+//#include <QDebug>
 #include <QSqlError>
 
 //##### PUBLIC ######################################################################
@@ -37,29 +37,33 @@ void ResourceManager::loadView()
     delete reader;
 }
 
-void ResourceManager::focusView(int realitiveIndex)
+bool ResourceManager::focusView(int realitiveIndex)
 {
-    if(viewMode == 1 && unfocusX * unfocusY == 1)
-        return;
+    if(viewMode == 1 && unfocusX * unfocusY == 1)//Don't use view mode 1 lol
+        return false;
     if(viewMode == 1) //unfocus
     {
+        if(viewIndex >= currentQuery.count())//unfocus after deletion of an image
+            viewIndex = currentQuery.count() - 1;
         viewIndex -= viewIndex % (unfocusX * unfocusY);//view index is first of current page
         setShownGrid(unfocusX, unfocusY);
+        return false;
     }
     else                        // focus
     {
         setShownGrid(1,1);
         viewIndex += realitiveIndex;
+        return true;
     }
 }
 
-void ResourceManager::setShownGrid(int x, int y)//maximum of 5x5 maybe?
+void ResourceManager::setShownGrid(int x, int y)
 {
     viewMode = x * y;
     albumViewer->setGrid(x, y);
 }
 
-void ResourceManager::setGrid(int x, int y)//maximum of 5x5 maybe?
+void ResourceManager::setGrid(int x, int y)
 {
     unfocusX = x;
     unfocusY = y;
@@ -109,10 +113,8 @@ std::tuple<int, int> ResourceManager::getIndexStat()
 
 void ResourceManager::importImages(QStringList files)
 {
-    importCanceled = false;
     ImportProgress* importDiolog= new ImportProgress(files.size(), parent);
     importDiolog->show();
-    //importDiolog->
 
     QSqlQuery qry;
     if(!qry.exec("SELECT ImportID FROM Imports ORDER BY ImportID DESC LIMIT 1;"))
@@ -128,7 +130,7 @@ void ResourceManager::importImages(QStringList files)
         importDiolog->currentTask(filenameUnique);
         if(filenameUnique != "")
         {
-            QFile::copy(path, "debug/res/imgs/original/" + filenameUnique);
+            QFile::copy(path, resPath+"imgs/original/" + filenameUnique);
 
             createScaledVersions(filenameUnique);
 
@@ -138,14 +140,14 @@ void ResourceManager::importImages(QStringList files)
         }
 
         importDiolog->updateProgress();
-        if(importCanceled)
+        if(importDiolog->canceled)
         {
-            //undo import with currrentID
+            importDiolog->currentTask("Reverting import...");
+            revertImport(importID);
             break;
         }
     }
     delete importDiolog;
-    //RELOAD TAGGING QUEUE
 }
 
 
@@ -164,7 +166,7 @@ AlbumEntry* ResourceManager::loadEntryData(int index, int quality, QImageReader*
         if(quality == MINI_QUALITY)
             qualityPath = "mini/";
 
-        reader->setFileName("debug/res/imgs/" + qualityPath + entry->filename);//check the proper folder for quality
+        reader->setFileName(resPath + "imgs/" + qualityPath + entry->filename);//check the proper folder for quality
         QPixmap* image = new QPixmap();
         *image = QPixmap::fromImageReader(reader);
         entry->img = image;
@@ -182,7 +184,7 @@ void ResourceManager::createScaledVersions(QString filename)
 {
     QImageReader* reader = new QImageReader();
 
-    reader->setFileName("debug/res/imgs/original/" +  filename);
+    reader->setFileName(resPath + "imgs/original/" +  filename);
     QImage full = reader->read();
     QImage mini = full.copy();
 
@@ -191,14 +193,15 @@ void ResourceManager::createScaledVersions(QString filename)
     if(mini.width() > 810 || mini.height() > 540)
         mini = mini.scaled(810, 540,Qt::AspectRatioMode::KeepAspectRatio, Qt::TransformationMode::SmoothTransformation);
 
-    full.save("debug/res/imgs/full/" +  filename);
-    mini.save("debug/res/imgs/mini/" +  filename);
+    full.save(resPath + "imgs/full/" +  filename);
+    mini.save(resPath + "imgs/mini/" +  filename);
 
     delete reader;
 }
 
+
 //############### DATABASE ###########################################################
-void ResourceManager::loadDatabase() // USE THIS FOR READING IN TAGS
+void ResourceManager::loadDatabase()
 {
     QSqlQuery qry;
     qry.prepare("SELECT Tag, * FROM TagList");
@@ -216,10 +219,6 @@ void ResourceManager::connectToDatabase()
     if(!database.open())
     {
         qDebug() << "failed to open";
-        //return false;
-    } else {
-        qDebug() << "oppened!";
-        //return true;
     }
 }
 
@@ -233,7 +232,6 @@ void ResourceManager::runImageQuery(QStringList* tags, QDate* start, QDate* end)
 {
     for(int i = currentQuery.size(); i > 0; i--)
         delete currentQuery.takeFirst();
-    //CLEAR THE CACHE QUEUE
     for(int i = cache.size(); i > 0; i--)
         delete cache.dequeue();
 
@@ -242,24 +240,18 @@ void ResourceManager::runImageQuery(QStringList* tags, QDate* start, QDate* end)
                         "FROM Images as img ";
     qryString += tagQuerey(tags, start, end);
     //date studd here?
-    qryString += ";";
-    qDebug() << qryString;
-    //qry.prepare(qryString);
+    qryString += "ORDER BY Time ASC";
+    //qDebug() << qryString;
 
     if(!qry.exec(qryString))
         qDebug() << "query Failed";
-    qDebug() << qry.lastError();
     while(qry.next())
     {
-        qDebug() << qry.value(0);
         currentQuery.append(new AlbumEntry(qry.value(0).toString(),
                                            qry.value(1).toString(),
-                                           qry.value(2).toString()));//,
+                                           dateTimeFromString(qry.value(2).toString())));//,
                                            //qry.value(3).toInt())); for data types
     }
-    delete tags;
-    delete start;
-    delete end;
 }
 
 //Assembles an AND search of active tags
@@ -322,7 +314,7 @@ QString ResourceManager::getUniqueFilename(QString filepath) // try returning a 
         if(!unique)
         {
             //check if copy
-            CollisionDialog collision("debug/res/imgs/original/" + filename, filepath, parent);//need images or at least file paths
+            CollisionDialog collision(resPath + "imgs/original/" + filename, filepath, parent);//need images or at least file paths
             collision.setModal(true);
             if(collision.exec() == 1) // 1 IS copy, 0 is NOT copy
             {
@@ -335,3 +327,200 @@ QString ResourceManager::getUniqueFilename(QString filepath) // try returning a 
     }
     return filename;
 }
+
+void ResourceManager::revertImport(int importID)
+{
+    QSqlQuery qry;
+    if(!qry.exec("SELECT Filename FROM Imports where ImportID = " + QString::number(importID)))
+        qDebug() << "revert query failed";
+
+    while(qry.next())
+    {
+        QFile file (resPath + "imgs/original/" + qry.value(0).toString());
+        file.remove();
+        file.setFileName(resPath + "imgs/full/" + qry.value(0).toString());
+        file.remove();
+        file.setFileName(resPath + "imgs/mini/" + qry.value(0).toString());
+        file.remove();
+    }
+    qry.clear();
+    if(!qry.exec("DELETE FROM Imports WHERE ImportID = " + QString::number(importID)))
+        qDebug() << "Failed to revert Imports table";
+}
+
+QStringList ResourceManager::getImportQueue()
+{
+    QStringList queue;
+    QSqlQuery qry;
+    if(!qry.exec("SELECT Filename FROM Imports"))
+        qDebug() << "failed to get import queue";
+
+    while(qry.next())
+        queue.append(qry.value(0).toString());
+
+    return queue;
+}
+
+void ResourceManager::removeImage(QString filename)
+{
+    //qDebug() << filename;
+    QSqlQuery qry;
+    if(!qry.exec("DELETE FROM Imports WHERE Filename = '" + filename + "'"))
+        qDebug() << "failed to remove entry: " << qry.lastError();
+    qry.clear();
+    if(!qry.exec("DELETE FROM Images WHERE Filename = '" + filename + "'"))
+        qDebug() << "failed to remove entry";
+    QFile(resPath + "imgs/original/"+filename).remove();
+    QFile(resPath + "imgs/full/"+filename).remove();
+    QFile(resPath + "imgs/mini/"+filename).remove();
+}
+
+void ResourceManager::saveImage(QString filename, QString description, QDateTime date, QStringList tags)
+{
+    //Add to Images table
+    QSqlQuery qry;
+    QString formatedTime = getFormatedDate(date);
+    if(!qry.exec("INSERT INTO Images (Filename, Description, Time, Filetype)"
+                 "VALUES ('" + filename + "','" + description + "', "
+                 "'" + formatedTime +"', 1)"))
+        qDebug() << "failed to add entry: " << qry.lastError();
+    qry.clear();
+    //Remove from Imports table
+    if(!qry.exec("DELETE FROM Imports WHERE Filename = '" + filename + "'"))
+            qDebug() << "failed to remove import after saving: ";
+        qry.clear();
+    //Add new tags to Tags table
+    addTags(tags, filename);
+}
+
+QStringList ResourceManager::getTagsOfImage(int index)
+{
+    AlbumEntry* entry = currentQuery.at(index);
+    QStringList tags;
+    if(entry != nullptr)
+    {
+        if(entry->tags == nullptr)
+        {
+            entry->tags = new QStringList();
+            QSqlQuery qry;
+            if(!qry.exec("SELECT Tag FROM TagPairs WHERE Filename = '" + entry->filename + "'"))
+                qDebug() << "failed to get tagList";
+            while(qry.next())
+                entry->tags->append(qry.value(0).toString());
+        }
+        tags = *entry->tags;
+    }
+    return tags;
+
+}
+
+void ResourceManager::startEdit()
+{
+    editing = currentQuery.at(viewIndex);
+}
+
+void ResourceManager::saveEdit(QString filename, QString description, QDateTime date, QStringList tags)
+{
+    if(editing == nullptr)
+    {
+        qDebug() << "not editing any record! what's going on???";
+        return;
+    }
+
+    //qDebug() << "Image table";
+    QSqlQuery qry;
+    if(filename != editing->filename || description != editing->description || date != editing->date)
+    {
+        if(!qry.exec("UPDATE Images SET Filename = '" + filename + "', Description = '" + description +
+                     "', Time = '" + getFormatedDate(date) + "' WHERE Filename = '" + editing->filename + "'"))
+                qDebug() << "failed to update Images table: " << qry.lastError();
+            qry.clear();
+    }
+
+    //Tag updating
+    //find differences. this is 2N + N^2 as oppsed to looping twice which would be 2N^2
+    QStringList addedTags(tags);
+    QStringList removedTags(*editing->tags);
+    for(QString tag: addedTags)
+    {
+        if(removedTags.contains(tag))
+        {
+            addedTags.removeOne(tag);
+            removedTags.removeOne(tag);
+        }
+    }
+    //add new ones to TagList table
+    //add connections of new tags
+    addTags(addedTags, filename);
+    //remove connections of old tags
+    if(removedTags.count() > 0)
+    {
+        qDebug() << "removing at least one tag pair";
+        //this uses the new filename because of cascading changes from the potential rename
+        QString removeQuery = "DELETE FROM TagPairs WHERE Filename = '" + filename +"' AND (Tag = '" + removedTags[0] + "'";
+
+        for(int i = 1; i < removedTags.count(); i++)
+        {
+            removeQuery += " OR Tag = '" + removedTags[i] + "'";
+            //next case
+        }
+        removeQuery += ")"; // end of tag OR tag
+        if(!qry.exec(removeQuery))
+                qDebug() << "failed to delete tag pairs";
+            qry.clear();
+    }
+    //remove tags that have no pairs? do in an update maybe..
+    //change local copy
+    editing->filename = filename;
+    editing->description = description;
+    editing->date = date;
+    if(editing->tags != nullptr) // this should always be true, but just in case
+        delete editing->tags;
+    editing->tags = new QStringList(tags);
+}
+
+QStringList ResourceManager::getTagsOfCurrentImage()
+{
+    return getTagsOfImage(viewIndex);
+}
+
+QString ResourceManager::getFormatedDate(QDateTime date)
+{
+    QDate d = date.date();
+    QTime t = date.time();
+    return QString::number(d.year()) + "-" + QString::number(d.month()) + "-" + QString::number(d.day()) +
+            " " + QString::number(t.hour()) + "-" + QString::number(t.minute()) + "-" + QString::number(t.second()); //YYYY-MM-DD HH:MM:SS
+}
+
+void ResourceManager::addTags(QStringList tags, QString filename)
+{
+    QSqlQuery qry;
+    for(QString tag: tags)
+    {
+        if(!ResourceManager::tags.contains(tag, Qt::CaseInsensitive))
+        {
+            ResourceManager::tags.append(tag);
+            if(!qry.exec("INSERT INTO TagList (Tag) VALUES('" + tag + "')"))
+                    qDebug() << "failed to add new tag: ";
+                qry.clear();
+        }
+        //Connect tags in TagPairs table
+        if(!qry.exec("INSERT INTO TagPairs (Tag, Filename) VALUES('" + tag + "', '" + filename + "')"))
+                qDebug() << "failed to add tagp pair: ";
+            qry.clear();
+    }
+}
+QDateTime ResourceManager::dateTimeFromString(QString dateStr)
+{
+    QDateTime date;
+    if(dateStr != "")
+    {
+        QStringList pieces = dateStr.split(QRegularExpression("[-: ]"));
+        date.setDate(QDate(pieces[0].toInt(), pieces[1].toInt(), pieces[2].toInt()));
+        date.setTime(QTime(pieces[3].toInt(), pieces[4].toInt(), pieces[5].toInt()));
+    }
+    else
+        qDebug() << "couldn't read the datetime";
+    return date;
+}
+

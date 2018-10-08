@@ -1,5 +1,5 @@
 #include "albumview.h"
-#include <QDebug>
+//#include <QDebug>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -10,13 +10,15 @@
 #include <QMouseEvent>
 
 
-AlbumView::AlbumView(QWidget* parent, QColor background, int ind, bool label)/*, Qt::WindowFlags f)*/ : QWidget(parent)
+AlbumView::AlbumView(QWidget* parent, QColor background, int ind, bool label) : QWidget(parent)
 {
     index = ind;
     showLabel = label;
     mainLayout = new QVBoxLayout(this);
+    //setSizePolicy(QSizePolicy::Policy::Fixed);
 
     labelLayout = new QHBoxLayout();
+    descriptionLayout = new QVBoxLayout();
     labelFrame = new QFrame();
 
 
@@ -24,7 +26,6 @@ AlbumView::AlbumView(QWidget* parent, QColor background, int ind, bool label)/*,
     dateLabel = new QLabel("second label");
     descriptionLabel = new QLabel("second label v2s");
     spacer = new QSpacerItem(15, 0);
-    spacer2 = new QSpacerItem(0,0,QSizePolicy::Policy::Expanding);//do 0s work for height widh?
 
     mainLayout->addWidget(imageLabel);
     if(showLabel)
@@ -34,8 +35,8 @@ AlbumView::AlbumView(QWidget* parent, QColor background, int ind, bool label)/*,
 
         labelLayout->addWidget(dateLabel);
         labelLayout->addSpacerItem(spacer);
-        labelLayout->addWidget(descriptionLabel);
-        labelLayout->addSpacerItem(spacer2);
+        labelLayout->addLayout(descriptionLayout, 1);
+        descriptionLayout->addWidget(descriptionLabel);
 
         dateLabel->setText("");
         descriptionLabel->setText("LOADING...");
@@ -43,14 +44,16 @@ AlbumView::AlbumView(QWidget* parent, QColor background, int ind, bool label)/*,
         //size policy
         QSizePolicy vertical;
         vertical.setVerticalPolicy(QSizePolicy::Policy::Fixed);
-        vertical.setHorizontalPolicy(QSizePolicy::Policy::Minimum);
+        vertical.setHorizontalPolicy(QSizePolicy::Policy::Expanding);
+        QSizePolicy vertical2;
+        vertical2.setVerticalPolicy(QSizePolicy::Policy::Fixed);
+        vertical2.setHorizontalPolicy(QSizePolicy::Policy::Ignored);
 
         dateLabel->setSizePolicy(vertical);
         dateLabel->setAlignment(Qt::AlignLeft);
-        descriptionLabel->setSizePolicy(vertical);
+        descriptionLabel->setSizePolicy(vertical2);
         descriptionLabel->setAlignment(Qt::AlignLeft);
         labelFrame->setSizePolicy(vertical);
-        //labelFrame->v
         labelLayout->setMargin(0);
     }
     mainLayout->setSpacing(3);// this is between the image and the text
@@ -69,35 +72,23 @@ AlbumView::AlbumView(QWidget* parent, QColor background, int ind, bool label)/*,
     descriptionLabel->setStyleSheet("background: white;");
     imageLabel->setStyleSheet(style.arg(background.red()).arg(background.green()).arg(background.blue()));
     labelFrame->setStyleSheet(style.arg(background.red()).arg(background.green()).arg(background.blue()));
-    //background.
     imageLabel->setAlignment(Qt::AlignCenter);
     QFont font;
     font.setPointSize(15);//font size!
     dateLabel->setFont(font);
     descriptionLabel->setFont(font);
 
-    //img = albumEntry->img;
+    //qDebug() << "size: " << width() << "    " << height();
 }
 
 void AlbumView::setPlaceholder(bool p)
 {
     placeholder = p;
     imageLabel->clear();
-    if(placeholder)
+    if(showLabel)
     {
-        if(showLabel)
-        {
-            dateLabel->setVisible(false);
-            descriptionLabel->setVisible(false);
-        }
-    }
-    else
-    {
-        if(showLabel)
-        {
-            dateLabel->setVisible(true);
-            descriptionLabel->setVisible(true);
-        }
+        dateLabel->setVisible(!placeholder);
+        descriptionLabel->setVisible(!placeholder);
     }
 }
 
@@ -113,7 +104,7 @@ AlbumView::~AlbumView()
 void AlbumView::setEntry(AlbumEntry* entry)
 {
     albumEntry = entry;
-    dateLabel->setText(entry->date);
+    dateLabel->setText(entry->date.toString());//THIS IS SLOPPY YOU CAN FORMAT THIS BETTER
     descriptionLabel->setText(entry->description);
     ResizeImage();
 }
@@ -158,14 +149,7 @@ void AlbumView::ResizeImage()
     if(!albumEntry->img->isNull())
     {
         imageLabel->setPixmap(albumEntry->img->scaled(width,height,Qt::KeepAspectRatio));
-        //imageLabel->setStyleSheet("background: red;");
     }
-    else
-    {
-        qDebug() << "image IS null";
-        //imageLabel->setPixmap(img);
-    }
-
 }
 
 QString AlbumView::GetDate()

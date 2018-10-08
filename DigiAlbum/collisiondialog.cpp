@@ -26,10 +26,3 @@ CollisionDialog::~CollisionDialog()
 {
     delete ui;
 }
-
-/*//check for duplication
-QImageReader* reader = new QImageReader();
-reader->setFileName("debug/res/imgs/" + qualityPath + entry->filename);//check the proper folder for quality
-QPixmap* image = new QPixmap();
-*image = QPixmap::fromImageReader(reader);
-QEventLoop::processEvents();*/

@@ -38,14 +38,14 @@ private:
 //contained widgets:
     QVBoxLayout *mainLayout;
 
-    QHBoxLayout *labelLayout;
+    QHBoxLayout* labelLayout;
     QFrame* labelFrame;
+    QVBoxLayout* descriptionLayout;
 
     QLabel *imageLabel;
     QLabel *dateLabel;
     QLabel *descriptionLabel;
     QSpacerItem *spacer;
-    QSpacerItem *spacer2;
     QPixmap *img;
 
     AlbumEntry* albumEntry;
@@ -53,16 +53,8 @@ private:
     bool showLabel = true;
     bool placeholder = false;
 
-    //bool isVideoThumbnail = false;
-    //int displayMode = -1;
-
 signals:
-    //MyWidget's signals....
     void clicked(int index);
-public slots:
-    //void RecieveImage(QPixmap* img);
-    //void RecieveVideo(QMediaPlayer* vid);
-    //void RecieveGif(QMovie* gif);
 protected:
     void mouseReleaseEvent(QMouseEvent* event);
 };

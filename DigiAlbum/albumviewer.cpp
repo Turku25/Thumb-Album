@@ -1,6 +1,6 @@
 #include "albumviewer.h"
 
-#include <QDebug>
+//#include <QDebug>
 #include <QApplication>
 
 
@@ -32,7 +32,6 @@ void AlbumViewer::clear()
 void AlbumViewer::setGrid(int width, int height)
 {
     clear();//only clear if it's a different size
-
     horizViews = width;
     vertiViews = height;
     bool tags = horizViews * vertiViews < 6;

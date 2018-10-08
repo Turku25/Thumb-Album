@@ -14,7 +14,8 @@ struct AlbumEntry
 {
     QString filename;
     QString description;
-    QString date;
+    QDateTime date;
+    QStringList* tags = nullptr;
     int quality;
 
     QPixmap* img = nullptr;
@@ -23,12 +24,18 @@ struct AlbumEntry
 
     //static QMutex dataMutex;//close mutex before changing data pointers and before displaying their contents
 
-    AlbumEntry(QString filename_, QString description_, QString date_/*, int filetype_*/)
+    AlbumEntry(QString filename_, QString description_, QDateTime date_/*, int filetype_*/)
     {
         filename = filename_;
         description = description_;
         date = date_;
         //filetype = filetype_;
+    }
+
+    ~AlbumEntry()
+    {
+        //image deletion is handled by resource manager
+        delete tags;
     }
 };
 

@@ -12,6 +12,9 @@
 #define SHEET_W 4
 #define SHEET_H 4
 
+//or degug/
+//#define BUILD_ROOT "release"
+
 //#define IMAGE_MODE 0
 //#define VIDEO_MODE 1
 //#define GIF_MODE 2

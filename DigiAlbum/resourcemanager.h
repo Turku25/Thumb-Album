@@ -12,7 +12,7 @@
 #include "definitions.h"
 #include "albumentry.h"
 #include "albumviewer.h"
-#include "importProgress.h"
+#include "importprogress.h"
 #include "collisiondialog.h"
 
 
@@ -25,19 +25,27 @@ public:
     void setGrid(int x, int y);
     bool setIndex(int index);
     void runImageQuery(QStringList* tags, QDate* start, QDate* end);
-    void focusView(int realitiveIndex);
+    bool focusView(int realitiveIndex);
     void exitFocus();
+    void removeImage(QString filename);
+    void saveImage(QString filename, QString description, QDateTime date, QStringList tags);
+    QStringList getTagsOfImage(int index);
+    QStringList getTagsOfCurrentImage();
+    void startEdit();
+    void saveEdit(QString filename, QString description, QDateTime date, QStringList tags);
+    QDateTime dateTimeFromString(QString dateStr);
 
     bool forwards();
     bool backwards();
 
     void importImages(QStringList files);
+    QStringList getImportQueue();
 
     std::tuple<int, int> getIndexStat();// current / total
 
     QList<AlbumEntry*> currentQuery;//ints are the indexes of allImages
-
     QStringList tags;
+    AlbumEntry* editing = nullptr;
 
 signals:
 
@@ -56,12 +64,16 @@ private:
     QString tagQuerey(QStringList* tags, QDate* start, QDate* end);
 
     void createScaledVersions(QString filename);
+    void revertImport(int importID);
+    QString getFormatedDate(QDateTime date);
+    void addTags(QStringList tags, QString filename);
+
 
 
     //void RunImageQuery();
 
     QSqlDatabase database;
-    QString resPath = "debug/res/";
+    QString resPath = "res/";
 
     AlbumViewer* albumViewer;
     int viewIndex = 0;
@@ -71,8 +83,6 @@ private:
     int unfocusY = 2;
     const int cacheSize = 50;
     QQueue<QPixmap*> cache;
-
-    bool importCanceled = false;
 };
 
 #endif // RESOURCEMANAGER_H

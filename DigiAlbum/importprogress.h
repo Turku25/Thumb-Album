@@ -2,6 +2,7 @@
 #define IMPORTPROGRESS_H
 
 #include <QDialog>
+#include <QDebug>
 
 namespace Ui {
 class ImportProgress;
@@ -16,6 +17,10 @@ public:
     ~ImportProgress();
     void updateProgress();
     void currentTask(QString task);
+    bool canceled = false;
+
+private slots:
+    void on_ImportProgress_finished(int result);
 
 private:
     Ui::ImportProgress *ui;
